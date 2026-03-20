@@ -20,7 +20,7 @@
       "enabled": true,
       "serviceAccountClientId": "idklol-webadmin",
       "clientRoles": {
-        "realm-management": ["view-users", "view-clients", "view-realm"]
+        "realm-management": ["view-users", "manage-users", "query-users", "view-clients", "view-realm"]
       }
     }
   ],

@@ -7,7 +7,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 SERVER_SHA="$1"
-TFVARS_FILE="${2:-prod.tfvars}"
+TFVARS_FILE="${2:-prod.public.tfvars}"
 SHORT_SHA="${SERVER_SHA:0:7}"
 IMAGE_TAG="sha-${SHORT_SHA}"
 

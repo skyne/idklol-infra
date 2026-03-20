@@ -50,9 +50,10 @@ locals {
   } : {}
   grpc_ingress_annotations = var.ingress_class_name == "nginx" ? merge(local.cert_manager_annotations, {
     "nginx.ingress.kubernetes.io/backend-protocol" = "GRPC"
-    }) : var.ingress_class_name == "traefik" ? merge(local.cert_manager_annotations, {
+    }) : local.cert_manager_annotations
+  grpc_service_annotations = var.ingress_class_name == "traefik" ? {
     "traefik.ingress.kubernetes.io/service.serversscheme" = "h2c"
-  }) : local.cert_manager_annotations
+  } : {}
 }
 
 resource "kubernetes_namespace_v1" "stack" {
@@ -74,6 +75,7 @@ resource "kubernetes_secret_v1" "platform_shared" {
   }
 
   data = {
+    "keycloak-admin-username"         = var.keycloak_admin_username
     "postgres-username"               = var.external_postgres_username
     "postgres-password"               = var.external_postgres_password
     "characters-database-url"         = local.characters_database_url
@@ -314,6 +316,7 @@ resource "helm_release" "app_stack" {
           service = {
             enabled = true
             type    = "ClusterIP"
+            annotations = local.grpc_service_annotations
             ports = [
               {
                 name       = "grpc"
@@ -384,6 +387,7 @@ resource "helm_release" "app_stack" {
           service = {
             enabled = true
             type    = "ClusterIP"
+            annotations = local.grpc_service_annotations
             ports = [
               {
                 name       = "grpc"
@@ -551,6 +555,7 @@ resource "helm_release" "app_stack" {
             KEYCLOAK_ID                  = "idklol-webadmin"
             KEYCLOAK_ISSUER              = "https://${var.keycloak_host}/realms/${local.keycloak_realm_name}"
             KEYCLOAK_EXTERNAL_ISSUER     = "https://${var.keycloak_host}/realms/${local.keycloak_realm_name}"
+            KEYCLOAK_TOKEN_CLIENT_ID     = "idklol-characters"
             NODE_TLS_REJECT_UNAUTHORIZED = "0"
             NATS_URL                     = local.nats_url
             TRACING_OTLP_ENABLED         = local.tracing_enabled ? "true" : "false"
@@ -559,8 +564,10 @@ resource "helm_release" "app_stack" {
             TRACING_SAMPLE_RATIO         = "1.0"
           }
           secretEnv = {
-            NEXTAUTH_SECRET = "nextauth-secret"
-            KEYCLOAK_SECRET = "keycloak-webadmin-client-secret"
+            NEXTAUTH_SECRET         = "nextauth-secret"
+            KEYCLOAK_SECRET         = "keycloak-webadmin-client-secret"
+            KEYCLOAK_ADMIN_USERNAME = "keycloak-admin-username"
+            KEYCLOAK_ADMIN_PASSWORD = "keycloak-admin-password"
           }
           waitFor = concat(
             [

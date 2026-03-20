@@ -10,7 +10,7 @@ on:
       tfvars_file:
         description: "tfvars file to update"
         required: false
-        default: "prod.tfvars"
+        default: "prod.public.tfvars"
         type: string
       automerge:
         description: "Enable auto-merge on the created PR"

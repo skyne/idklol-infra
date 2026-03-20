@@ -6,14 +6,16 @@ on:
     paths:
       - "**/*.tf"
       - "helm/**"
-      - "prod.tfvars"
+      - "prod.public.tfvars"
+      - "prod.secrets.tfvars.example"
       - ".github/workflows/terraform-deploy.yml"
   push:
     branches: [main]
     paths:
       - "**/*.tf"
       - "helm/**"
-      - "prod.tfvars"
+      - "prod.public.tfvars"
+      - "prod.secrets.tfvars.example"
       - ".github/workflows/terraform-deploy.yml"
   workflow_dispatch:
 
@@ -66,21 +68,35 @@ jobs:
 
           echo "$KUBECONFIG_B64" | base64 -d > "$RUNNER_TEMP/kubeconfig"
 
+      - name: Write prod secret tfvars
+        env:
+          PROD_TFVARS_B64: ${{ secrets.PROD_TFVARS_B64 }}
+        run: |
+          if [ -z "$PROD_TFVARS_B64" ]; then
+            echo "no-prod-tfvars" > "$RUNNER_TEMP/plan-skip"
+            echo "::warning::PROD_TFVARS_B64 is not configured; skipping terraform plan."
+            exit 0
+          fi
+
+          echo "$PROD_TFVARS_B64" | base64 -d > "$RUNNER_TEMP/prod.secrets.tfvars"
+
       - name: Terraform init
         run: terraform init
 
       - name: Terraform plan
         env:
           KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+          PROD_TFVARS_B64: ${{ secrets.PROD_TFVARS_B64 }}
         run: |
-          if [ -z "$KUBECONFIG_B64" ]; then
+          if [ -z "$KUBECONFIG_B64" ] || [ -z "$PROD_TFVARS_B64" ]; then
             exit 0
           fi
 
           terraform plan \
             -input=false \
             -no-color \
-            -var-file=prod.tfvars \
+            -var-file=prod.public.tfvars \
+            -var-file="$RUNNER_TEMP/prod.secrets.tfvars" \
             -var "kubeconfig_path=$RUNNER_TEMP/kubeconfig" \
             -var "kube_context=" \
             -out=tfplan
@@ -109,9 +125,15 @@ jobs:
       - name: Require kubeconfig secret
         env:
           KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+          PROD_TFVARS_B64: ${{ secrets.PROD_TFVARS_B64 }}
         run: |
           if [ -z "$KUBECONFIG_B64" ]; then
             echo "KUBECONFIG_B64 is required for apply" >&2
+            exit 1
+          fi
+
+          if [ -z "$PROD_TFVARS_B64" ]; then
+            echo "PROD_TFVARS_B64 is required for apply" >&2
             exit 1
           fi
 
@@ -121,13 +143,20 @@ jobs:
         run: |
           echo "$KUBECONFIG_B64" | base64 -d > "$RUNNER_TEMP/kubeconfig"
 
+      - name: Write prod secret tfvars
+        env:
+          PROD_TFVARS_B64: ${{ secrets.PROD_TFVARS_B64 }}
+        run: |
+          echo "$PROD_TFVARS_B64" | base64 -d > "$RUNNER_TEMP/prod.secrets.tfvars"
+
       - name: Terraform init
         run: terraform init
 
       - name: Terraform apply
         run: |
           terraform apply -auto-approve -input=false \
-            -var-file=prod.tfvars \
+            -var-file=prod.public.tfvars \
+            -var-file="$RUNNER_TEMP/prod.secrets.tfvars" \
             -var "kubeconfig_path=$RUNNER_TEMP/kubeconfig" \
             -var "kube_context="
 

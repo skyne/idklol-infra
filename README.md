@@ -63,7 +63,7 @@ This repo now supports a GitOps-style promotion flow with immutable image tags:
 1. `idklol-server` builds and pushes service images tagged as `sha-<short-commit>`.
 2. `idklol-server` triggers `promote-server-images.yml` in this repo.
 3. `idklol-client` UE pipeline triggers `promote-ue-image.yml` in this repo.
-4. Promotion workflow updates `prod.tfvars` image variables and opens a PR.
+4. Promotion workflow updates `prod.public.tfvars` image variables and opens a PR.
 5. Merging the PR triggers `terraform-deploy.yml` apply on `main`.
 
 This gives reproducible deploys and easy rollbacks (revert the promotion PR).
@@ -78,6 +78,7 @@ This gives reproducible deploys and easy rollbacks (revert the promotion PR).
   - `INFRA_AUTOMERGE`: set to `true` to request PR auto-merge on promotion PRs.
 - In `idklol-infra`:
   - `KUBECONFIG_B64`: base64-encoded kubeconfig used by Terraform plan/apply workflows.
+  - `PROD_TFVARS_B64`: base64-encoded `prod.secrets.tfvars` content used by Terraform plan/apply workflows.
 
 Example to create the secret payload:
 
@@ -85,16 +86,20 @@ Example to create the secret payload:
 base64 -i ~/.kube/config | tr -d '\n'
 ```
 
+```bash
+base64 -i prod.secrets.tfvars | tr -d '\n'
+```
+
 ### Workflows in this repo
 
 - `.github/workflows/promote-server-images.yml`
   - Triggered by dispatch from `idklol-server`
-  - Updates image variables in `prod.tfvars`
+  - Updates image variables in `prod.public.tfvars`
   - Opens a PR with immutable SHA tags
 
 - `.github/workflows/promote-ue-image.yml`
   - Triggered by dispatch from `idklol-client` UE pipeline
-  - Updates `ue_server_image` in `prod.tfvars`
+  - Updates `ue_server_image` in `prod.public.tfvars`
   - Opens a PR with immutable SHA tags
 
 - `.github/workflows/terraform-deploy.yml`
@@ -145,7 +150,9 @@ The realm file templates these values at apply time:
 - `__KEYCLOAK_CHAT_CLIENT_SECRET__`
 - `__KEYCLOAK_WEBADMIN_CLIENT_SECRET__`
 
-This keeps initial Keycloak client secrets aligned with `prod.tfvars` and avoids bootstrap drift from hardcoded dev secrets.
+This keeps initial Keycloak client secrets aligned with your production secrets tfvars and avoids bootstrap drift from hardcoded dev secrets.
+
+For production, keep non-secret values in `prod.public.tfvars` (committed) and sensitive values in `prod.secrets.tfvars` (not committed). CI reads the secrets file via `PROD_TFVARS_B64`.
 
 The realm import no longer creates demo username/password accounts. Set `keycloak_admin_username` and `keycloak_admin_password` in your `.tfvars` file and rotate them by updating the values and re-running `terraform apply`.
 

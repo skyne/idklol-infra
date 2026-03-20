@@ -27,22 +27,22 @@ provider "helm" {
 }
 
 locals {
-  keycloak_realm_name      = "idklol"
-  public_scheme            = var.ingress_tls_enabled ? "https" : "http"
-  keycloak_public_base_url = "${local.public_scheme}://${var.keycloak_host}"
-  keycloak_public_realm    = "${local.keycloak_public_base_url}/realms/${local.keycloak_realm_name}"
-  keycloak_internal_base   = "http://keycloak.${var.namespace}.svc.cluster.local"
-  keycloak_internal_realm  = "${local.keycloak_internal_base}/realms/${local.keycloak_realm_name}"
-  webadmin_public_url      = "${local.public_scheme}://${var.webadmin_host}"
-  otlp_endpoint            = var.otlp_endpoint != null ? trimspace(var.otlp_endpoint) : ""
-  otlp_headers             = var.otlp_auth_header != null ? trimspace(var.otlp_auth_header) : ""
-  external_nats_url        = var.external_nats_url != null ? trimspace(var.external_nats_url) : ""
-  tracing_enabled          = local.otlp_endpoint != ""
-  use_external_nats        = local.external_nats_url != ""
-  deploy_nats              = !local.use_external_nats && var.deploy_incluster_nats
-  nats_url                 = local.use_external_nats ? local.external_nats_url : "nats://nats.${var.namespace}.svc.cluster.local:4222"
-  postgres_suffix          = var.external_postgres_sslmode == "" ? "" : "?sslmode=${var.external_postgres_sslmode}"
-  characters_database_url  = "postgresql://${urlencode(var.external_postgres_username)}:${urlencode(var.external_postgres_password)}@${var.external_postgres_host}:${var.external_postgres_port}/${var.characters_database_name}${local.postgres_suffix}"
+  keycloak_realm_name       = "idklol"
+  public_scheme             = var.ingress_tls_enabled ? "https" : "http"
+  keycloak_public_base_url  = "${local.public_scheme}://${var.keycloak_host}"
+  keycloak_public_realm     = "${local.keycloak_public_base_url}/realms/${local.keycloak_realm_name}"
+  keycloak_internal_base    = "http://keycloak.${var.namespace}.svc.cluster.local"
+  keycloak_internal_realm   = "${local.keycloak_internal_base}/realms/${local.keycloak_realm_name}"
+  webadmin_public_url       = "${local.public_scheme}://${var.webadmin_host}"
+  otlp_endpoint             = var.otlp_endpoint != null ? trimspace(var.otlp_endpoint) : ""
+  otlp_headers              = var.otlp_auth_header != null ? trimspace(var.otlp_auth_header) : ""
+  external_nats_url         = var.external_nats_url != null ? trimspace(var.external_nats_url) : ""
+  tracing_enabled           = local.otlp_endpoint != ""
+  use_external_nats         = local.external_nats_url != ""
+  deploy_nats               = !local.use_external_nats && var.deploy_incluster_nats
+  nats_url                  = local.use_external_nats ? local.external_nats_url : "nats://nats.${var.namespace}.svc.cluster.local:4222"
+  postgres_suffix           = var.external_postgres_sslmode == "" ? "" : "?sslmode=${var.external_postgres_sslmode}"
+  characters_database_url   = "postgresql://${urlencode(var.external_postgres_username)}:${urlencode(var.external_postgres_password)}@${var.external_postgres_host}:${var.external_postgres_port}/${var.characters_database_name}${local.postgres_suffix}"
   npc_metadata_database_url = "postgresql://${urlencode(var.external_postgres_username)}:${urlencode(var.external_postgres_password)}@${var.external_postgres_host}:${var.external_postgres_port}/${var.npc_metadata_database_name}${local.postgres_suffix}"
   cluster_issuer_name_clean = try(trimspace(var.cluster_issuer_name), "")
   cert_manager_annotations = local.cluster_issuer_name_clean != "" ? {
@@ -50,7 +50,7 @@ locals {
   } : {}
   grpc_ingress_annotations = var.ingress_class_name == "nginx" ? merge(local.cert_manager_annotations, {
     "nginx.ingress.kubernetes.io/backend-protocol" = "GRPC"
-  }) : var.ingress_class_name == "traefik" ? merge(local.cert_manager_annotations, {
+    }) : var.ingress_class_name == "traefik" ? merge(local.cert_manager_annotations, {
     "traefik.ingress.kubernetes.io/service.serversscheme" = "h2c"
   }) : local.cert_manager_annotations
 }
@@ -60,8 +60,8 @@ resource "kubernetes_namespace_v1" "stack" {
     name = var.namespace
 
     labels = {
-      "app.kubernetes.io/name" = "idklol"
-      "app.kubernetes.io/part-of" = "idklol-server"
+      "app.kubernetes.io/name"       = "idklol"
+      "app.kubernetes.io/part-of"    = "idklol-server"
       "app.kubernetes.io/managed-by" = "terraform"
     }
   }
@@ -74,14 +74,14 @@ resource "kubernetes_secret_v1" "platform_shared" {
   }
 
   data = {
-    "postgres-username"              = var.external_postgres_username
-    "postgres-password"              = var.external_postgres_password
-    "characters-database-url"        = local.characters_database_url
-    "npc-metadata-database-url"      = local.npc_metadata_database_url
-    "keycloak-admin-password"        = var.keycloak_admin_password
-    "keycloak-chat-client-secret"    = var.keycloak_chat_client_secret
+    "postgres-username"               = var.external_postgres_username
+    "postgres-password"               = var.external_postgres_password
+    "characters-database-url"         = local.characters_database_url
+    "npc-metadata-database-url"       = local.npc_metadata_database_url
+    "keycloak-admin-password"         = var.keycloak_admin_password
+    "keycloak-chat-client-secret"     = var.keycloak_chat_client_secret
     "keycloak-webadmin-client-secret" = var.keycloak_webadmin_client_secret
-    "nextauth-secret"                = var.nextauth_secret
+    "nextauth-secret"                 = var.nextauth_secret
   }
 
   type = "Opaque"
@@ -281,15 +281,15 @@ resource "helm_release" "app_stack" {
             }
           }
           env = {
-            KEYCLOAK_URL              = local.keycloak_internal_realm
-            KEYCLOAK_CLIENT_ID        = "idklol-chat"
-            LOG_LEVEL                 = "info"
-            LOG_OUTPUT                = "console"
-            LOG_FORMAT                = "plain"
-            TRACING_OTLP_ENABLED      = local.tracing_enabled ? "true" : "false"
+            KEYCLOAK_URL                = local.keycloak_internal_realm
+            KEYCLOAK_CLIENT_ID          = "idklol-chat"
+            LOG_LEVEL                   = "info"
+            LOG_OUTPUT                  = "console"
+            LOG_FORMAT                  = "plain"
+            TRACING_OTLP_ENABLED        = local.tracing_enabled ? "true" : "false"
             OTEL_EXPORTER_OTLP_ENDPOINT = local.otlp_endpoint
             OTEL_EXPORTER_OTLP_HEADERS  = local.otlp_headers
-            TRACING_SAMPLE_RATIO      = "1.0"
+            TRACING_SAMPLE_RATIO        = "1.0"
           }
           secretEnv = {
             KEYCLOAK_CLIENT_SECRET = "keycloak-chat-client-secret"
@@ -361,8 +361,8 @@ resource "helm_release" "app_stack" {
             TRACING_SAMPLE_RATIO        = "1.0"
           }
           secretEnv = {
-            DATABASE_URL            = "characters-database-url"
-            KEYCLOAK_CLIENT_SECRET  = "keycloak-chat-client-secret"
+            DATABASE_URL           = "characters-database-url"
+            KEYCLOAK_CLIENT_SECRET = "keycloak-chat-client-secret"
           }
           waitFor = [
             {
@@ -432,8 +432,8 @@ resource "helm_release" "app_stack" {
             TRACING_SAMPLE_RATIO        = "1.0"
           }
           secretEnv = {
-            DATABASE_URL             = "characters-database-url"
-            KEYCLOAK_CLIENT_SECRET   = "keycloak-webadmin-client-secret"
+            DATABASE_URL           = "characters-database-url"
+            KEYCLOAK_CLIENT_SECRET = "keycloak-webadmin-client-secret"
           }
           waitFor = concat(
             [
@@ -542,21 +542,21 @@ resource "helm_release" "app_stack" {
             }
           }
           env = {
-            NODE_ENV                    = "production"
-            HOSTNAME                    = "0.0.0.0"
-            AUTH_DEBUG                  = "false"
-            AUTH_TRUST_HOST             = "true"
-            AUTH_URL                    = local.webadmin_public_url
-            NEXTAUTH_URL                = local.webadmin_public_url
-            KEYCLOAK_ID                 = "idklol-webadmin"
-            KEYCLOAK_ISSUER             = "https://${var.keycloak_host}/realms/${local.keycloak_realm_name}"
-            KEYCLOAK_EXTERNAL_ISSUER    = "https://${var.keycloak_host}/realms/${local.keycloak_realm_name}"
+            NODE_ENV                     = "production"
+            HOSTNAME                     = "0.0.0.0"
+            AUTH_DEBUG                   = "false"
+            AUTH_TRUST_HOST              = "true"
+            AUTH_URL                     = local.webadmin_public_url
+            NEXTAUTH_URL                 = local.webadmin_public_url
+            KEYCLOAK_ID                  = "idklol-webadmin"
+            KEYCLOAK_ISSUER              = "https://${var.keycloak_host}/realms/${local.keycloak_realm_name}"
+            KEYCLOAK_EXTERNAL_ISSUER     = "https://${var.keycloak_host}/realms/${local.keycloak_realm_name}"
             NODE_TLS_REJECT_UNAUTHORIZED = "0"
-            NATS_URL                    = local.nats_url
-            TRACING_OTLP_ENABLED        = local.tracing_enabled ? "true" : "false"
-            OTEL_EXPORTER_OTLP_ENDPOINT = local.otlp_endpoint
-            OTEL_EXPORTER_OTLP_HEADERS  = local.otlp_headers
-            TRACING_SAMPLE_RATIO        = "1.0"
+            NATS_URL                     = local.nats_url
+            TRACING_OTLP_ENABLED         = local.tracing_enabled ? "true" : "false"
+            OTEL_EXPORTER_OTLP_ENDPOINT  = local.otlp_endpoint
+            OTEL_EXPORTER_OTLP_HEADERS   = local.otlp_headers
+            TRACING_SAMPLE_RATIO         = "1.0"
           }
           secretEnv = {
             NEXTAUTH_SECRET = "nextauth-secret"
@@ -631,11 +631,11 @@ resource "helm_release" "app_stack" {
             }
           }
           env = {
-            MAP_PATH   = var.ue_server_map_path
-            GAME_PORT  = "7777"
-            NATS_URL   = local.nats_url
+            MAP_PATH    = var.ue_server_map_path
+            GAME_PORT   = "7777"
+            NATS_URL    = local.nats_url
             INSTANCE_ID = "server-1"
-            LOG_LEVEL  = "Log"
+            LOG_LEVEL   = "Log"
           }
           waitFor = local.deploy_nats ? [
             {
@@ -689,20 +689,20 @@ resource "helm_release" "app_stack" {
             }
           }
           env = {
-            NATS_URL                       = local.nats_url
-            OLLAMA_BASE_URL                = var.ollama_base_url
-            OLLAMA_MODEL                   = var.ollama_model
-            NPC_BRIDGE_REQUEST_SUBJECT     = "npc.interactions.request"
-            NPC_BRIDGE_RESPONSE_SUBJECT    = "npc.interactions.response"
-            NPC_BRIDGE_PROMPTS_DIR         = "/srv/prompts"
-            NPC_BRIDGE_DEFAULT_PROMPT      = "default/system"
-            LOG_LEVEL                      = "info"
-            LOG_OUTPUT                     = "console"
-            LOG_FORMAT                     = "plain"
-            TRACING_OTLP_ENABLED           = local.tracing_enabled ? "true" : "false"
-            OTEL_EXPORTER_OTLP_ENDPOINT    = local.otlp_endpoint
-            OTEL_EXPORTER_OTLP_HEADERS     = local.otlp_headers
-            TRACING_SAMPLE_RATIO           = "1.0"
+            NATS_URL                    = local.nats_url
+            OLLAMA_BASE_URL             = var.ollama_base_url
+            OLLAMA_MODEL                = var.ollama_model
+            NPC_BRIDGE_REQUEST_SUBJECT  = "npc.interactions.request"
+            NPC_BRIDGE_RESPONSE_SUBJECT = "npc.interactions.response"
+            NPC_BRIDGE_PROMPTS_DIR      = "/srv/prompts"
+            NPC_BRIDGE_DEFAULT_PROMPT   = "default/system"
+            LOG_LEVEL                   = "info"
+            LOG_OUTPUT                  = "console"
+            LOG_FORMAT                  = "plain"
+            TRACING_OTLP_ENABLED        = local.tracing_enabled ? "true" : "false"
+            OTEL_EXPORTER_OTLP_ENDPOINT = local.otlp_endpoint
+            OTEL_EXPORTER_OTLP_HEADERS  = local.otlp_headers
+            TRACING_SAMPLE_RATIO        = "1.0"
           }
           waitFor = local.deploy_nats ? [
             {

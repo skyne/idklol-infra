@@ -1,0 +1,61 @@
+name: Promote UE Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      ue_sha:
+        description: "Commit SHA from UE repo"
+        required: true
+        type: string
+      tfvars_file:
+        description: "tfvars file to update"
+        required: false
+        default: "prod.tfvars"
+        type: string
+      automerge:
+        description: "Enable auto-merge on the created PR"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout infra repo
+        uses: actions/checkout@v4
+
+      - name: Update UE image tag to immutable SHA tag
+        run: |
+          ./scripts/update-ue-image-tag.sh "${{ inputs.ue_sha }}" "${{ inputs.tfvars_file }}"
+
+      - name: Create promotion PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: "chore/promote-ue-image-${{ github.run_id }}"
+          title: "chore(deploy): promote UE image for ${{ inputs.ue_sha }}"
+          commit-message: "chore(deploy): promote UE image for ${{ inputs.ue_sha }}"
+          body: |
+            Automated UE image promotion from commit `${{ inputs.ue_sha }}`.
+
+            - Updates `ue_server_image` in `${{ inputs.tfvars_file }}`
+            - Uses immutable tag (`sha-<short-sha>`) for reproducible deploys
+
+            Merge this PR to deploy through infra pipeline.
+          labels: |
+            deploy
+            automation
+            ue
+
+      - name: Enable PR auto-merge
+        if: inputs.automerge && steps.cpr.outputs.pull-request-number != ''
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+          merge-method: squash

@@ -1,0 +1,27 @@
+{{- range $name, $svc := .Values.services }}
+{{- if and $svc.enabled $svc.service $svc.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "idklol-stack.commonLabels" $ | nindent 4 }}
+    {{- include "idklol-stack.selectorLabels" (dict "root" $ "name" $name) | nindent 4 }}
+  {{- if $svc.service.annotations }}
+  annotations:
+    {{- toYaml $svc.service.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ default "ClusterIP" $svc.service.type }}
+  selector:
+    {{- include "idklol-stack.selectorLabels" (dict "root" $ "name" $name) | nindent 4 }}
+  ports:
+    {{- range $port := $svc.service.ports }}
+    - name: {{ $port.name }}
+      port: {{ $port.port }}
+      targetPort: {{ $port.targetPort }}
+      protocol: {{ default "TCP" $port.protocol }}
+    {{- end }}
+---
+{{- end }}
+{{- end }}

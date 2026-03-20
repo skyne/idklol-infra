@@ -1,0 +1,68 @@
+# Kubernetes access
+kubeconfig_path = "~/.kube/config"
+# Set to null when using the generated kubeconfig from ./hetzner
+kube_context    = null
+
+# Networking
+namespace          = "idklol"
+ingress_class_name = "traefik"
+ingress_tls_enabled = false
+
+webadmin_host       = "admin.dev.idklol.example"
+keycloak_host       = "auth.dev.idklol.example"
+chat_grpc_host      = "chat.dev.idklol.example"
+characters_grpc_host = "characters.dev.idklol.example"
+
+# Managed PostgreSQL — Neon free tier (0.5 vCPU, 1 GB RAM, 3 GB storage)
+# 1. Sign up at https://neon.tech and create a project in the eu-central-1 region (nearest to Hetzner fsn1)
+# 2. Create three databases: idklol_keycloak, idklol_characters, idklol_npc_metadata
+# 3. Paste the connection details below (Project Settings → Connection Details)
+external_postgres_host     = "ep-cool-darkness-123456.eu-central-1.aws.neon.tech"
+external_postgres_port     = 5432
+external_postgres_username = "idklol"
+external_postgres_password = "replace-me"
+external_postgres_sslmode  = "require"
+
+keycloak_database_name      = "idklol_keycloak"
+characters_database_name    = "idklol_characters"
+npc_metadata_database_name  = "idklol_npc_metadata"
+
+# Messaging
+# Leave empty to use the in-cluster NATS Helm release.
+external_nats_url   = null
+deploy_incluster_nats = true
+
+# Auth / app secrets
+keycloak_admin_username        = "idklol-admin"
+keycloak_admin_password        = "replace-me"
+keycloak_chat_client_secret    = "replace-me"
+keycloak_webadmin_client_secret = "replace-me"
+nextauth_secret                = "replace-me-with-openssl-rand-base64-32"
+
+# Observability — Grafana Cloud free tier (10k metrics, 50GB logs, 50GB traces)
+# 1. Sign up at https://grafana.com/auth/sign-up/create-user
+# 2. My Account → Grafana Cloud → OpenTelemetry → copy the OTLP endpoint URL
+# 3. Create an API token with MetricsPublisher + LogsPublisher + TracesPublisher scopes
+# 4. base64-encode "INSTANCEID:TOKEN" and paste below
+otlp_endpoint    = null   # e.g. "https://otlp-gateway-prod-eu-west-0.grafana.net/otlp"
+otlp_auth_header = null   # e.g. "Basic dXNlcjpwYXNzd29yZA=="
+
+# Optional private registry pull secrets already present in the namespace
+image_pull_secret_names = []
+
+# UE dedicated server
+ue_server_service_type = "LoadBalancer"
+
+# Optional NPC bridge
+deploy_npc_interactions_bridge = false
+ollama_base_url                = ""
+ollama_model                   = "qwen2.5:1.5b"
+
+# Deployment images (pin immutable tags, do not use :latest in shared envs)
+chatserver_image               = "ghcr.io/skyne/idklol-server-chatserver:sha-abcdef1"
+characters_grpc_image          = "ghcr.io/skyne/idklol-server-characters-grpc:sha-abcdef1"
+characters_admin_image         = "ghcr.io/skyne/idklol-server-characters-admin:sha-abcdef1"
+characters_server_image        = "ghcr.io/skyne/idklol-server-characters-server:sha-abcdef1"
+npc_metadata_service_image     = "ghcr.io/skyne/idklol-server-npc-metadata-service:sha-abcdef1"
+npc_interactions_bridge_image  = "ghcr.io/skyne/idklol-server-npc-interactions-bridge:sha-abcdef1"
+webadmin_image                 = "ghcr.io/skyne/idklol-server-webadmin:sha-abcdef1"

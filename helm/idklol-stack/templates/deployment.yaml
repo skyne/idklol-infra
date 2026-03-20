@@ -1,0 +1,121 @@
+{{- range $name, $svc := .Values.services }}
+{{- if $svc.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "idklol-stack.commonLabels" $ | nindent 4 }}
+    {{- include "idklol-stack.selectorLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  replicas: {{ default 1 $svc.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "idklol-stack.selectorLabels" (dict "root" $ "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "idklol-stack.commonLabels" $ | nindent 8 }}
+        {{- include "idklol-stack.selectorLabels" (dict "root" $ "name" $name) | nindent 8 }}
+      {{- if $svc.podAnnotations }}
+      annotations:
+        {{- toYaml $svc.podAnnotations | nindent 8 }}
+      {{- end }}
+    spec:
+      terminationGracePeriodSeconds: {{ default 30 $svc.terminationGracePeriodSeconds }}
+      {{- if $svc.nodeSelector }}
+      nodeSelector:
+        {{- toYaml $svc.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if $svc.tolerations }}
+      tolerations:
+        {{- toYaml $svc.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if $svc.affinity }}
+      affinity:
+        {{- toYaml $svc.affinity | nindent 8 }}
+      {{- end }}
+      {{- if $.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range $.Values.global.imagePullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      {{- if $svc.waitFor }}
+      initContainers:
+        - name: wait-for-dependencies
+          image: busybox:1.36
+          command:
+            - sh
+            - -ec
+            - |
+              {{- range $dep := $svc.waitFor }}
+              until nc -z {{ $dep.host }} {{ $dep.port }}; do
+                echo "waiting for {{ $dep.host }}:{{ $dep.port }}";
+                sleep 2;
+              done
+              {{- end }}
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ $svc.image | quote }}
+          imagePullPolicy: {{ default "IfNotPresent" $svc.imagePullPolicy }}
+          {{- if $svc.command }}
+          command:
+            {{- toYaml $svc.command | nindent 12 }}
+          {{- end }}
+          {{- if $svc.args }}
+          args:
+            {{- toYaml $svc.args | nindent 12 }}
+          {{- end }}
+          {{- if $svc.containerPorts }}
+          ports:
+            {{- range $port := $svc.containerPorts }}
+            - name: {{ $port.name }}
+              containerPort: {{ $port.containerPort }}
+              protocol: {{ default "TCP" $port.protocol }}
+            {{- end }}
+          {{- end }}
+          {{- if or $svc.env $svc.secretEnv }}
+          env:
+            {{- range $key, $value := $svc.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- range $key, $secretKey := $svc.secretEnv }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.global.sharedSecretName }}
+                  key: {{ $secretKey }}
+            {{- end }}
+          {{- end }}
+          {{- if $svc.resources }}
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          {{- end }}
+          {{- if $svc.lifecycle }}
+          lifecycle:
+            {{- toYaml $svc.lifecycle | nindent 12 }}
+          {{- end }}
+          {{- if and $svc.probes $svc.probes.enabled $svc.probes.tcpSocketPort }}
+          startupProbe:
+            tcpSocket:
+              port: {{ default $svc.probes.tcpSocketPort $svc.probes.startupTcpSocketPort }}
+            initialDelaySeconds: {{ default 0 $svc.probes.startupInitialDelaySeconds }}
+            periodSeconds: {{ default 5 $svc.probes.startupPeriodSeconds }}
+            failureThreshold: {{ default 30 $svc.probes.startupFailureThreshold }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ $svc.probes.tcpSocketPort }}
+            initialDelaySeconds: {{ default 20 $svc.probes.livenessInitialDelaySeconds }}
+            periodSeconds: {{ default 10 $svc.probes.livenessPeriodSeconds }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ $svc.probes.tcpSocketPort }}
+            initialDelaySeconds: {{ default 5 $svc.probes.readinessInitialDelaySeconds }}
+            periodSeconds: {{ default 10 $svc.probes.readinessPeriodSeconds }}
+          {{- end }}
+---
+{{- end }}
+{{- end }}

@@ -1,0 +1,18 @@
+#cloud-config
+package_update: true
+package_upgrade: false
+
+packages:
+  - curl
+  - ca-certificates
+
+runcmd:
+  - |
+      set -eu
+      export INSTALL_K3S_EXEC="server --node-name ${node_name} --write-kubeconfig-mode ${write_kubeconfig}%{ if disable_traefik } --disable traefik%{ endif }"
+%{ if k3s_version != "" }
+      export INSTALL_K3S_VERSION="${k3s_version}"
+%{ endif }
+      curl -sfL https://get.k3s.io | sh -
+  - systemctl enable k3s
+  - systemctl restart k3s

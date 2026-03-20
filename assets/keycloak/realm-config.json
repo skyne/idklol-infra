@@ -1,0 +1,107 @@
+{
+  "realm": "idklol",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": true,
+  "accessTokenLifespan": 36000,
+  "accessTokenLifespanForImplicitFlow": 36000,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "roles": {
+    "realm": [
+      { "name": "admin" },
+      { "name": "user" }
+    ]
+  },
+  "users": [
+    {
+      "username": "service-account-idklol-webadmin",
+      "enabled": true,
+      "serviceAccountClientId": "idklol-webadmin",
+      "clientRoles": {
+        "realm-management": ["view-users", "view-clients", "view-realm"]
+      }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "idklol-chat",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "secret": "__KEYCLOAK_CHAT_CLIENT_SECRET__",
+      "redirectUris": [
+        "http://localhost/*"
+      ]
+    },
+    {
+      "clientId": "idklol-developer-key",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": false,
+      "secret": "dev-secret-12345"
+    },
+    {
+      "clientId": "idklol-characters",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost/*"
+      ],
+      "protocolMappers": [
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "email",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "email",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "idklol-webadmin",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "secret": "__KEYCLOAK_WEBADMIN_CLIENT_SECRET__",
+      "redirectUris": [
+        "__PUBLIC_WEB_URL__/*"
+      ],
+      "webOrigins": [
+        "__PUBLIC_WEB_URL__"
+      ],
+      "protocolMappers": [
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+name: Terraform Deploy
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/*.tf"
+      - "helm/**"
+      - "prod.tfvars"
+      - ".github/workflows/terraform-deploy.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**/*.tf"
+      - "helm/**"
+      - "prod.tfvars"
+      - ".github/workflows/terraform-deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: terraform-prod
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+  plan:
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+
+      - name: Write kubeconfig
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          if [ -z "$KUBECONFIG_B64" ]; then
+            echo "no-kubeconfig" > "$RUNNER_TEMP/plan-skip"
+            echo "::warning::KUBECONFIG_B64 is not configured; skipping terraform plan."
+            exit 0
+          fi
+
+          echo "$KUBECONFIG_B64" | base64 -d > "$RUNNER_TEMP/kubeconfig"
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform plan
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          if [ -z "$KUBECONFIG_B64" ]; then
+            exit 0
+          fi
+
+          terraform plan \
+            -input=false \
+            -no-color \
+            -var-file=prod.tfvars \
+            -var "kubeconfig_path=$RUNNER_TEMP/kubeconfig" \
+            -var "kube_context=" \
+            -out=tfplan
+
+      - name: Upload plan artifact
+        if: hashFiles('tfplan') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: tfplan
+
+  apply:
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+
+      - uses: azure/setup-kubectl@v4
+
+      - name: Require kubeconfig secret
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          if [ -z "$KUBECONFIG_B64" ]; then
+            echo "KUBECONFIG_B64 is required for apply" >&2
+            exit 1
+          fi
+
+      - name: Write kubeconfig
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          echo "$KUBECONFIG_B64" | base64 -d > "$RUNNER_TEMP/kubeconfig"
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform apply
+        run: |
+          terraform apply -auto-approve -input=false \
+            -var-file=prod.tfvars \
+            -var "kubeconfig_path=$RUNNER_TEMP/kubeconfig" \
+            -var "kube_context="
+
+      - name: Rollout health checks
+        env:
+          KUBECONFIG: ${{ runner.temp }}/kubeconfig
+        run: |
+          kubectl -n idklol rollout status deployment/webadmin --timeout=180s
+          kubectl -n idklol rollout status deployment/chatserver --timeout=180s
+          kubectl -n idklol rollout status deployment/characters-grpc --timeout=180s
+          kubectl -n idklol rollout status deployment/characters-admin --timeout=180s
+          kubectl -n idklol rollout status deployment/npc-metadata-service --timeout=180s

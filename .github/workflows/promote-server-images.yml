@@ -1,0 +1,60 @@
+name: Promote Server Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_sha:
+        description: "Commit SHA from idklol-server"
+        required: true
+        type: string
+      tfvars_file:
+        description: "tfvars file to update"
+        required: false
+        default: "prod.tfvars"
+        type: string
+      automerge:
+        description: "Enable auto-merge on the created PR"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout infra repo
+        uses: actions/checkout@v4
+
+      - name: Update image tags to immutable SHA tags
+        run: |
+          ./scripts/update-server-image-tags.sh "${{ inputs.server_sha }}" "${{ inputs.tfvars_file }}"
+
+      - name: Create promotion PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: "chore/promote-server-images-${{ github.run_id }}"
+          title: "chore(deploy): promote server images for ${{ inputs.server_sha }}"
+          commit-message: "chore(deploy): promote server images for ${{ inputs.server_sha }}"
+          body: |
+            Automated image promotion from `idklol-server` commit `${{ inputs.server_sha }}`.
+
+            - Updates server service images in `${{ inputs.tfvars_file }}`
+            - Uses immutable tags (`sha-<short-sha>`) for reproducible deploys
+
+            Merge this PR to deploy through infra pipeline.
+          labels: |
+            deploy
+            automation
+
+      - name: Enable PR auto-merge
+        if: inputs.automerge && steps.cpr.outputs.pull-request-number != ''
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+          merge-method: squash

@@ -50,7 +50,7 @@ locals {
   } : {}
   grpc_ingress_annotations = var.ingress_class_name == "nginx" ? merge(local.cert_manager_annotations, {
     "nginx.ingress.kubernetes.io/backend-protocol" = "GRPC"
-    }) : local.cert_manager_annotations
+  }) : local.cert_manager_annotations
   grpc_service_annotations = var.ingress_class_name == "traefik" ? {
     "traefik.ingress.kubernetes.io/service.serversscheme" = "h2c"
   } : {}
@@ -314,8 +314,8 @@ resource "helm_release" "app_stack" {
             }
           ]
           service = {
-            enabled = true
-            type    = "ClusterIP"
+            enabled     = true
+            type        = "ClusterIP"
             annotations = local.grpc_service_annotations
             ports = [
               {
@@ -385,8 +385,8 @@ resource "helm_release" "app_stack" {
             }
           ]
           service = {
-            enabled = true
-            type    = "ClusterIP"
+            enabled     = true
+            type        = "ClusterIP"
             annotations = local.grpc_service_annotations
             ports = [
               {

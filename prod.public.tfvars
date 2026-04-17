@@ -52,4 +52,4 @@ characters_server_image       = "ghcr.io/skyne/idklol-server-characters-server:s
 npc_metadata_service_image    = "ghcr.io/skyne/idklol-server-npc-metadata-service:sha-af3ce47"
 npc_interactions_bridge_image = "ghcr.io/skyne/idklol-server-npc-interactions-bridge:sha-af3ce47"
 webadmin_image                = "ghcr.io/skyne/idklol-server-webadmin:sha-af3ce47"
-ue_server_image               = "ghcr.io/skyne/ue-server:sha-66ed5ae"
+ue_server_image = "ghcr.io/skyne/ue-server:sha-de19821"
